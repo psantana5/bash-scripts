@@ -13,7 +13,7 @@ done
 
 # Prompt user to install missing packages
 if [ ${#missing_packages[@]} -gt 0 ]; then
-    echo -e "\033[0;31mThe following packages are required but not installed: ${missing_packages[@]}\033[0m"
+    echo -e "The following packages are required but not installed: ${missing_packages[@]}\033[0m"
     read -p "Do you want to install them now? (y/n) " choice
     case "$choice" in
         y|Y ) sudo apt-get update && sudo apt-get install -y "${missing_packages[@]}";;
