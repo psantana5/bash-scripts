@@ -1,9 +1,4 @@
 #!/bin/bash
-
-toilet -F gay --gay "File Comparer" -w 120
-
-#!/bin/bash
-
 if [ $# -ne 2 ]; then
   echo "Usage: $0 file1 file2"
   exit 1
