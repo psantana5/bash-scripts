@@ -247,6 +247,38 @@ file_access_logic(){
   fi
 }
 
+update_nginx(){
+  echo "Checking for Nginx updates..."
+  sudo apt update
+  nginx_updates=$(apt list --upgradable 2>/dev/null | grep nginx)
+  if [ -n "$nginx_updates" ]; then
+    echo "There are updates available for Nginx:"
+    echo -e "$nginx_updates"
+  else
+    echo "Nginx is up to date"
+  fi
+  echo "Checking for updates to installed Nginx modules..."
+  module_dir="/usr/lib/nginx/modules"
+  module_updates=""
+  for file in $module_dir/*.so; do
+    module_name=$(basename "$file")
+    module_package=$(dpkg -S "$file" 2>/dev/null | cut -d':' -f1)
+    if [ -n "$module_package" ]; then
+      module_update=$(apt list --upgradable 2>/dev/null | grep "$module_package")
+      if [ -n "$module_update" ]; then
+        module_updates+="Module: $module_name\nPackage: $module_package\nUpdate: $module_update\n\n"
+      fi
+    fi
+  done
+  if [ -n "$module_updates" ]; then
+    echo "There are updates available for installed Nginx modules:"
+    echo -e "$module_updates"
+  else
+    echo "No updates were found for installed Nginx modules"
+  fi
+
+}
+
 read_user_choice() {
   read -p "What do you wish to do: " choice
   case $choice in
@@ -273,6 +305,9 @@ read_user_choice() {
       ;;
     8)
       monitor_web_server
+      ;;
+    9)
+      update_nginx
       ;;
     *)
       echo "Invalid choice. Please try again."
