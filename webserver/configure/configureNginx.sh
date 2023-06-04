@@ -1,22 +1,38 @@
 #!/bin/bash
 
-read -p "Do you want to install the required dependencies (toilet, boxes, lolcat, git)? (y/n) " install_deps
+package_installed() {
+  dpkg -s "$1" > /dev/null 2>&1
+}
 
-if [[ $install_deps == "y" || $install_deps == "Y" ]]; then
+if ! package_installed toilet || ! package_installed boxes || ! package_installed lolcat || ! package_installed git; then
+  read -p "Do you want to install the required dependencies (toilet, boxes, lolcat, git)? (y/n) " install_deps
+
+  if [[ $install_deps == "y" || $install_deps == "Y" ]]; then
     sudo apt-get update
     sudo apt-get install toilet boxes lolcat git
+  else
+    echo "Some required packages are missing. Please install 'toilet', 'boxes', 'lolcat', and 'git' before running this script."
+    exit 1
+  fi
 fi
 
 toilet -f smblock "Nginx Configurator" | boxes -d cat -a hc -p h0 | lolcat
 
 while true; do
-    echo "OPTION MENU: "
+    echo "OPTIONS MENU: "
+    echo ""
     echo "Change the default port: (1)"
+    echo ""
     echo "Configure Virtual Hosts: (2)"
+    echo ""
     echo "Enable .htaccess file: (3)"
+    echo ""
     echo "Security Options (4)"
+    echo ""
     echo "Serve static content (5)"
+    echo ""
     echo "Exit (0)"
+    echo ""
     read -p "What do you wish to do: " option
 
     if [ $option == "1" ]; then
@@ -55,7 +71,7 @@ EOF
 
     elif [ $option == "3" ]; then
         echo "ATTENTION! THIS WILL INSTALL FURTHER DEPENDENCIES!!!"
-        read -p "Do you wish to proceed? y/n" proceed
+        read -p "Do you wish to proceed? y/n " proceed
         if [[ $proceed == "y" || $proceed == "Y" ]]; then
             echo "Cloning the e404/htaccess-for-nginx repository"
             git clone https://github.com/e404/htaccess-for-nginx.git
@@ -77,163 +93,196 @@ EOF
             echo "Restarting Nginx..."
             sudo systemctl restart nginx
         elif [[ $proceed == "n" || $proceed == "N" ]]; then
-            break
+            exit
         fi
     elif [ $option == "4" ]; then
-      echo "Security Options: "
-      echo "Disable unused Nginx modules (1)"
-      echo "Disable the display of Nginx version number to avoid information exposition (2)"
-      echo "Set client buffer size to avoid buffer overflow attacks (3)"
-      echo "Disable HTTP methods that are not necessary (TRACE, DELETE) (4)"
-      echo "Set up SSL usage (5)"
-      echo "Add security headers to my Nginx configuration (6)" 
-      echo "File access restriction (7)"
-      echo "Monitor my Nginx web server (8)"
-      echo "Update Nginx and installed modules (9)"
+     display_menu() {
+  echo ""
+  echo "Security Options:"
+  echo "--------------------------------------"
+  echo "Disable unused Nginx modules (1)"
+  echo "---------------------------------------"
+  echo "Disable the display of Nginx version number (2)"
+  echo "----------------------------------------------------------------------------------"
+  echo "Set client buffer size to avoid buffer overflow attacks (3)"
+  echo "--------------------------------------------------------------"
+  echo "Disable HTTP methods that are not necessary (TRACE, DELETE) (4)"
+  echo "----------------------------------------------------------------"
+  echo "Set up SSL usage (5)"
+  echo "------------------------"
+  echo "Add security headers to my Nginx configuration (6)"
+  echo "------------------------------------------------------"
+  echo "File access restriction (7)"
+  echo "--------------------------------------------------------"
+  echo "Monitor my Nginx web server (8)"
+  echo "---------------------------------------------"
+  echo "Update Nginx and installed modules (9)"
+  echo "---------------------------------------------"
+  echo ""
+}
 
-      read -p "What do you wish to do: " choice1
-      if [ $choice1 == "1" ]; then
-        echo "Disable unused Nginx modules"
-        echo "THE MODULE USAGE THRESHOLD IS 40 DAYS!"
-        module_dir=/usr/lib/nginx/modules
-        days=40
-        for file in $module_dir/*.so; do
-          last_access=$(stat -c %X "$file")
-          days_since_access=$(( ($(date +%s) - $last_access) / (60*60*24) ))
-        
-          if [ $days_since_access -gt $DAYS ]; then
-            echo "Disabling module $file"
-            mv "$file" "$file.disabled"
-          fi
-        done
-        echo "Reloading Nginx service..."
-        sudo systemctl restart nginx
-      fi
+disable_unused_modules() {
+  echo "Disable unused Nginx modules"
+  sleep 0.5
+  echo "THE MODULE USAGE THRESHOLD IS 40 DAYS!"
+  sleep 1
+  module_dir=/usr/lib/nginx/modules
+  days=40
+  for file in $module_dir/*.so; do
+    last_access=$(stat -c %X "$file")
+    days_since_access=$(( ($(date +%s) - $last_access) / (60*60*24) ))
+  
+    if [ $days_since_access -gt $days ]; then
+      echo "Disabling module $file"
+      mv "$file" "$file.disabled"
+    fi
+  done
+  echo "Reloading Nginx service..."
+  sudo systemctl restart nginx
+}
 
-    elif [ $option == "2" ]; then
-      nginx_config="/etc/nginx/nginx.conf"
-      echo "Backing up config file..."
-      sudo cp "$nginx_config" "$nginx_config.bak"
-      sleep 0.5
-      echo "Adding the version number hiding directive..."
-      sudo sed -i 's/server_tokens.*/server_tokens off;/g' "$nginx_config"
-      echo "Restarting Nginx service"
-      sudo service nginx restart
-      
-    elif [ $option == "3" ]; then
-      sudo cp "$nginx_config" "$nginx_config.bak"
-      echo "Adding client max_body_size and client_body_buffer_size"
-      sleep 0.5
-      echo "Attention! Buffer size for clients will be set at 10 MB."
-      sudo sed -i '/http {/a \    client_max_body_size 10m;\n    client_body_buffer_size 10m;' "$nginx_config"
-      echo "Restarting the nginx service"
-      sudo service nginx restart 
-    
-    elif [ $option == "4" ]; then
-      sudo cp "$nginx_config" "$nginx_config.bak"
-      echo "Adding the deny directives for TRACE and DELETE methods"
-      sleep 0.3
-      sudo sed -i '/http {/a \    if ($request_method ~* "(TRACE|DELETE)") {\n        return 405;\n    }' "$nginx_config"
-      echo "Restarting Nginx service"
-      sudo service nginx restart
-    
+hide_version_number() {
+  nginx_config="/etc/nginx/nginx.conf"
+  echo "Backing up config file..."
+  sudo cp "$nginx_config" "$nginx_config.bak"
+  sleep 0.5
+  echo "Adding the version number hiding directive..."
+  sudo sed -i 's/server_tokens.*/server_tokens off;/g' "$nginx_config"
+  echo "Restarting Nginx service"
+  sudo service nginx restart
+}
+
+set_client_buffer() {
+  nginx_config="/etc/nginx/nginx.conf"
+  sudo cp "$nginx_config" "$nginx_config.bak"
+  echo "Adding client max_body_size and client_body_buffer_size"
+  sleep 0.5
+  echo "Attention! Buffer size for clients will be set at 10 MB."
+  sudo sed -i '/http {/a \    client_max_body_size 10m;\n    client_body_buffer_size 10m;' "$nginx_config"
+  echo "Restarting the nginx service"
+  sudo service nginx restart
+}
+
+disable_http_methods() {
+  nginx_config="/etc/nginx/nginx.conf"
+  sudo cp "$nginx_config" "$nginx_config.bak"
+  echo "Adding the deny directives for TRACE and DELETE methods"
+  sleep 0.3
+  sudo sed -i '/http {/a \    if ($request_method ~* "(TRACE|DELETE)") {\n        return 405;\n    }' "$nginx_config"
+  echo "Restarting Nginx service"
+  sudo service nginx restart
+}
+
+setup_ssl() {
+  echo "Creating a self-signed SSL cert"
+  sleep 0.5
+  sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/nginx/ssl/nginx.key -out /etc/nginx/ssl/nginx.crt
+  echo "Creating a backup of the original Nginx configuration"
+  sudo cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.bak
+  echo "Updating the Nginx SSL configuration"
+  sudo sed -i 's/#\s*listen\s*80/listen 443 ssl/' /etc/nginx/nginx.conf
+  sudo sed -i '/# the default server/a \ \n\tssl_certificate \/etc\/nginx\/ssl\/nginx.crt\;\n\tssl_certificate_key \/etc\/nginx\/ssl\/nginx.key\;\n' /etc/nginx/nginx.conf
+  echo "Restarting the Nginx service"
+  sudo service nginx restart
+}
+
+add_security_headers() {
+  echo "Add security headers..."
+  sleep 0.5
+  echo "Creating a backup file..."
+  sleep 0.5
+  nginx_config="/etc/nginx/nginx.conf"
+  sudo cp "$nginx_config" "$nginx_config.bak"
+  echo "Adding security headers to the nginx.conf file"
+  sudo sed -i '/http {/a \    add_header X-Content-Type-Options "nosniff";\n    add_header X-Frame-Options "SAMEORIGIN";\n    add_header X-XSS-Protection "1; mode=block";\n    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;\n    add_header Content-Security-Policy "default-src https:";' "$nginx_config"
+  echo "Restarting the Nginx service"
+  sudo service nginx restart
+}
+
+monitor_web_server(){
+  echo "Monitoring the Nginx web server"
+  echo ""
+  echo "Status will be output to a monitoring log file"
+  echo ""
+  touch monitoring.log
+  echo "REPORT AS OF $(date) for Nginx Server"
+  echo "RAM Usage: $(free -h)" >> monitoring.log
+  echo "----------------------------------------------------"
+  echo "CPU Usage: $(  top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print 100 - $1"%"}')" >> monitoring.log
+  echo "-------------------------------------------------------------------------------------------------------------------------------"
+  echo "Service Status:$(sudo service nginx status)" >> monitoring.log
+  echo "------------------------------------------------------------------"
+  echo "Disk usage: $(df -h)" >> monitoring.log
+}
+
+file_access_logic(){
+  echo "File Access Logic"
+  nginx_bak="/etc/nginx/nginx.conf.bak"
+  private_dir="/root"
+  block_1="/var/www/html"
+  block_2="/etc"
+  block_3="/var/log"
+  block_4="/root/.ssh"
+  echo "Creating backup of the original Nginx Configuration"
+  sleep 1
+  sudo cp "$nginx_config" "$nginx_config_backup"
+  echo "Disabling browsing to private directories"
+  sleep 0.5
+  sudo sed -i '/location \/private\// { /autoindex on;/ s//autoindex off;/ }' "$nginx_config"
+  sudo sed -i "/location $block_1/ { /autoindex on;/ s//autoindex off;/ }" "$nginx_config"
+  sudo sed -i "/location $block_2/ { /autoindex on;/ s//autoindex off;/ }" "$nginx_config"
+  sudo sed -i "/location $block_3/ { /autoindex on;/ s//autoindex off;/ }" "$nginx_config"
+  sudo sed -i "/location $block_4/ { /autoindex on;/ s//autoindex off;/ }" "$nginx_config"
+  echo "Testing the nginx configuration for errors..."
+  sleep 1
+  nginx -t
+  if [ $? -eq 0 ]; then
+    sudo service nginx reload
+    echo "Directory browsing disabled for: $private_dir, $block_1, $block_2, $block_3, $block_4"
+  else
+    echo "There was an error in the Nginx config. Restoring backup file"
+    sudo cp "$nginx_bak" "$nginx_config"
+    sudo service nginx reload
+    echo "Nginx config restored correctly. Directory browsing remains enabled."
+  fi
+}
+
+read_user_choice() {
+  read -p "What do you wish to do: " choice
+  case $choice in
+    1)
+      disable_unused_modules
+      ;;
+    2)
+      hide_version_number
+      ;;
+    3)
+      set_client_buffer
+      ;;
+    4)
+      disable_http_methods
+      ;;
+    5)
+      setup_ssl
+      ;;
+    6)
+      add_security_headers
+      ;;
+    7)
+      file_access_logic
+      ;;
+    8)
+      monitor_web_server
+      ;;
+    *)
+      echo "Invalid choice. Please try again."
+      ;;
+  esac
+}
+
+display_menu
+read_user_choice
     elif [ $option == "5" ]; then
-      echo "Creating a self-signed SSL cert"
-      sleep 0.5
-      sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/nginx/ssl/nginx.key -out /etc/nginx/ssl/nginx.crt
-      echo "Creating a backup of the original Nginx configuration"
-      sudo cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.bak
-      echo "Updating the Nginx SSL configuration"
-      sudo sed -i 's/#\s*listen\s*80/listen 443 ssl/' /etc/nginx/nginx.conf
-      sudo sed -i '/# the default server/a \ \n\tssl_certificate \/etc\/nginx\/ssl\/nginx.crt\;\n\tssl_certificate_key \/etc\/nginx\/ssl\/nginx.key\;\n' /etc/nginx/nginx.conf
-      echo "Restarting the Nginx service"
-      sudo service nginx restart
-    
-    elif [ $option == "6" ]; then
-      echo "Add security headers..."
-      sleep 0.5
-      echo "Creating a backup file..."
-      sleep 0.5
-      sudo cp "$nginx_config" "$nginx_config.bak"
-      echo "Adding security headers to the nginx.conf file"
-      sudo sed -i '/http {/a \    add_header X-Content-Type-Options "nosniff";\n    add_header X-Frame-Options "SAMEORIGIN";\n    add_header X-XSS-Protection "1; mode=block";\n    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;\n    add_header Content-Security-Policy "default-src https:";' "$nginx_config"
-      echo "Restarting the Nginx service"
-      sudo service nginx restart
-    elif [ $option == "7" ]; then
-      echo "Set up file access restriction"
-      sleep 0.5
-      echo "Backing up the config files"
-      sudo cp "$nginx_conf" "$nginx_conf.bak"
-      sudo sed -i '/http {/a \    location ~ /(config|\.ht|\.git|\.env) {\n        deny all;\n        return 403;\n    }' "$nginx_config"
-      function disallow_folders(){
-        local nginx_config="$1"
-        local folders=("/etc", "/var", "/home", "/usr/local")
-        for folder in "${folders[@]}"; do
-          sudo sed -i "/http {/a \    location ~ ^/$folder(/|\$) {\n        deny all;\n        return 403;\n    }" "$nginx_config"
-        done
-      }
-      disallow_folders "$nginx_config"
-      echo "Restarting the nginx service"
-      sudo service nginx restart
-
-    elif [ $option == "8"] ; then
-      check_cpu(){
-        cpu_usage=$(top -bn1 | grep load | awk '{printf "%.2f%%\n", $(NF-2)}')
-        echo "CPU Usage: $cpu_usage"
-        echo "CPU Usage Info will now be output to a monitoring log file."
-        echo "CPU Usage: $cpu_usage" >> monitoring.log
-      }
-      check_ram(){
-        ram_usage=$(free -m | awk '/Mem:/ { printf "%.2f%%\n", ($3/$2)*100 }')
-        echo "RAM Usage: $ram_usage"
-        echo "RAM Usage will now be output to a monitoring log file"
-        echo "RAM Usage: $ram_usage" >> monitoring.log
-      }
-      check_disk(){
-        disk_usage=$(df -h / | awk '/\// {print $5}')
-        echo "Disk Usage: $disk_usage"
-        echo "Disk Usage will now be output to a monitoring log file"
-        echo "Disk Usage: $disk_usage" >> monitoring.log
-      }
-      check_service(){
-        service_status=$(systemctl is-active nginx)
-        echo "Nginx Service Status: $service_status"
-        echo "Nginx Service Status will now be output to a log monitoring file"
-        echo "Nginx Service Status: $service_status" >> monitoring.log
-      }
-
-      #MAIN SCRIPT
-
-      while true; do
-          echo "-------------------------"
-          echo "Nginx Configuration Menu"
-          echo "-------------------------"
-          echo "1. Check CPU Usage"
-          echo "2. Check RAM Usage"
-          echo "3. Check Disk Usage"
-          echo "4. Check Nginx Service Status"
-          echo "5. Exit"
-
-          read -p "Choose an option: " option
-
-          if [ $option == "1" ]; then
-            check_cpu
-          elif [ $option == "2" ]; then
-            check_ram
-          elif [ $option == "3" ]; then
-           check_disk
-          elif [ $option == "4" ]; then
-            check_service
-          elif [ $option == "5" ]; then
-           echo "Bye :)"
-           exit
-          else
-            echo "Invalid Option. Please choose a valid option"
-          fi
-      done
-
-        
-    elif [ $option == "9" ]; then
       echo "Serve Static Content Options:"
       echo "1. Serve Images"
       echo "2. Serve CSS"
@@ -265,5 +314,7 @@ EOF
       else 
         echo "Invalid option, operation canceled."
       fi
+      elif [ $option == "0" ]; then
+      exit
     fi
 done
