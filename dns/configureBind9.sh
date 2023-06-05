@@ -1,5 +1,4 @@
 #!/bin/bash
-#!/bin/bash
 
 check_bind9_installation() {
     echo "Checking if BIND9 is installed..."
