@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="https://example.com/logo.png" alt="Bash Scripting Practice Repository">
+  <img src="https://bashlogo.com/img/symbol/png/monochrome_light.png" alt="Bash Scripting Practice Repository">
 </h1>
 
 <p align="center">
