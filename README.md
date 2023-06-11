@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="https://bashlogo.com/img/symbol/png/monochrome_light.png" alt="Bash Scripting Practice Repository">
+  <img src="https://bashlogo.com/img/symbol/png/monochrome_light.png" alt="Bash Scripting Practice Repository" width="200" height "90">
 </h1>
 
 <p align="center">
