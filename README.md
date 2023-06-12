@@ -30,7 +30,7 @@ I aim to cover a wide range of topics related to bash scripting, including:
   - DNS
   - FTP
   - Email
-  - WebServer
+  - Web Server
 - 🔧 System administration tasks
 - 📂 File and directory manipulation
 - 🔍 Text processing and manipulation
