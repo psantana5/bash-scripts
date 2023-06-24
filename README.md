@@ -14,9 +14,9 @@
 
 The main purpose of this repository is to:
 
-- 📚 Learn and improve my understanding of bash scripting concepts
-- 💡 Explore different scripting techniques and approaches
-- 🛠️ Familiarize myself with common command-line tools and utilities
+- 📚 Learn and improve my understanding of bash scripting concepts.
+- 💡 Explore different scripting techniques and approaches.
+- 🛠️ Familiarize myself with common command-line tools and utilities.
 
 ## Script Usefulness
 
